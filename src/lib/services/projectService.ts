@@ -7,6 +7,10 @@ export async function getAllProjects() {
   return db.select().from(projects).all();
 }
 
+export async function getProject(id: string) {
+  return db.select().from(projects).where(eq(projects.id, id)).get();
+}
+
 export async function createProject(
   name: string,
   directoryPath: string,
