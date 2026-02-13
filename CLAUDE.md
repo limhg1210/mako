@@ -1,4 +1,4 @@
-# MAKO - 로컬 프로젝트 관리 웹앱
+# MAKO (Managed Agent Kanban Orchestrator) - 로컬 프로젝트 관리 웹앱
 
 ## 프로젝트 개요
 
