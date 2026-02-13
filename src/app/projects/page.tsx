@@ -65,8 +65,19 @@ export default function ProjectsPage() {
                     {project.directoryPath}
                   </p>
                 </div>
-                <div className="text-sm text-gray-400">
-                  Branch: {project.defaultBranch}
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-gray-400">
+                    Branch: {project.defaultBranch}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/projects/${project.id}/edit`);
+                    }}
+                    className="px-3 py-1 text-sm border border-border rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Edit
+                  </button>
                 </div>
               </div>
             </div>
