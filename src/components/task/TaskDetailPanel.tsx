@@ -1,7 +1,7 @@
 "use client";
 
 import { useTask } from "@/hooks/useTasks";
-import { TaskStatus, STATUS_LABELS } from "@/types";
+import { TaskStatus, STATUS_LABELS, STATUS_COLORS } from "@/types";
 import MarkdownEditor from "./MarkdownEditor";
 import ExecutionLog from "./ExecutionLog";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,8 +29,9 @@ export default function TaskDetailPanel({
   onDelete,
   onUpdate,
 }: TaskDetailPanelProps) {
-  const { task, updateTask } = useTask(taskId);
+  const { task, updateTask, mutate } = useTask(taskId);
   const [isEditing, setIsEditing] = useState(false);
+  const [pendingExecution, setPendingExecution] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [executing, setExecuting] = useState(false);
   const [executeMenuOpen, setExecuteMenuOpen] = useState(false);
@@ -59,10 +60,24 @@ export default function TaskDetailPanel({
         body: JSON.stringify({ taskId, mode }),
       });
       onUpdate();
+      mutate();
+      setPendingExecution(true);
     } finally {
       setExecuting(false);
     }
   };
+
+  useEffect(() => {
+    if (!pendingExecution) return;
+    const interval = setInterval(() => mutate(), 1000);
+    return () => clearInterval(interval);
+  }, [pendingExecution, mutate]);
+
+  useEffect(() => {
+    if (task?.status === "working" || task?.status === "review" || task?.status === "done") {
+      setPendingExecution(false);
+    }
+  }, [task?.status]);
 
   useEffect(() => {
     if (!executeMenuOpen) return;
@@ -131,7 +146,7 @@ export default function TaskDetailPanel({
               </h2>
             )}
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs px-2 py-0.5 bg-gray-100 rounded font-medium">
+              <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_COLORS[status]}`}>
                 {STATUS_LABELS[status]}
               </span>
               <span className="text-xs text-gray-400">
