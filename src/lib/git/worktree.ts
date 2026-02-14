@@ -81,3 +81,4 @@ export function removeWorktree(repoPath: string, worktreePath: string): void {
 export function getWorktreePath(repoPath: string, branchName: string): string {
   return path.join(repoPath, WORKTREE_DIR, branchName);
 }
+

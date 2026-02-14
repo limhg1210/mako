@@ -4,13 +4,17 @@ import { triggerExecution } from "@/lib/services/executionService";
 /** POST /api/execute — Ready 상태 태스크의 Claude 실행을 수동으로 트리거 (백그라운드 실행) */
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { taskId } = body;
+  const { taskId, mode } = body;
 
   if (!taskId) {
     return NextResponse.json({ error: "taskId is required" }, { status: 400 });
   }
 
-  const result = await triggerExecution(taskId);
+  if (mode !== "worktree" && mode !== "branch") {
+    return NextResponse.json({ error: "mode must be 'worktree' or 'branch'" }, { status: 400 });
+  }
+
+  const result = await triggerExecution(taskId, mode);
 
   if (!result.ok) {
     if (result.reason === "not_found") {

@@ -62,6 +62,7 @@ for (const sql of initStatements) {
 // Migrations for existing databases
 const migrations = [
   `ALTER TABLE tasks ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE tasks ADD COLUMN execution_mode TEXT`,
 ];
 
 for (const sql of migrations) {

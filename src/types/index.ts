@@ -1,5 +1,7 @@
 export type TaskStatus = "backlog" | "plan" | "ready" | "working" | "review" | "done";
 
+export type ExecutionMode = "worktree" | "branch";
+
 export const TASK_STATUSES: TaskStatus[] = ["backlog", "plan", "ready", "working", "review", "done"];
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -38,6 +40,7 @@ export interface Task {
   position: number;
   branchName: string | null;
   worktreePath: string | null;
+  executionMode: ExecutionMode | null;
   retryCount: number;
   executionError: string | null;
   executionStartedAt: number | null;

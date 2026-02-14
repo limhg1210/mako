@@ -4,7 +4,8 @@ import { useTask } from "@/hooks/useTasks";
 import { TaskStatus, STATUS_LABELS } from "@/types";
 import MarkdownEditor from "./MarkdownEditor";
 import ExecutionLog from "./ExecutionLog";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ExecutionMode } from "@/types";
 
 interface TaskDetailPanelProps {
   taskId: string;
@@ -32,6 +33,8 @@ export default function TaskDetailPanel({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [executing, setExecuting] = useState(false);
+  const [executeMenuOpen, setExecuteMenuOpen] = useState(false);
+  const executeMenuRef = useRef<HTMLDivElement>(null);
 
   const handleContentChange = useCallback(
     async (content: string) => {
@@ -46,19 +49,31 @@ export default function TaskDetailPanel({
     onUpdate();
   };
 
-  const handleExecute = async () => {
+  const handleExecute = async (mode: ExecutionMode) => {
+    setExecuteMenuOpen(false);
     setExecuting(true);
     try {
       await fetch("/api/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ taskId, mode }),
       });
       onUpdate();
     } finally {
       setExecuting(false);
     }
   };
+
+  useEffect(() => {
+    if (!executeMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (executeMenuRef.current && !executeMenuRef.current.contains(e.target as Node)) {
+        setExecuteMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [executeMenuOpen]);
 
   const handleTitleEdit = async () => {
     if (editTitle.trim() && editTitle !== task?.title) {
@@ -144,13 +159,38 @@ export default function TaskDetailPanel({
             </button>
           ))}
           {status === "ready" && (
-            <button
-              onClick={handleExecute}
-              disabled={executing}
-              className="text-xs px-3 py-1.5 bg-purple-600 text-white hover:bg-purple-700 rounded-md transition-colors disabled:opacity-50"
-            >
-              {executing ? "Starting..." : "Execute Now"}
-            </button>
+            <div className="relative" ref={executeMenuRef}>
+              <button
+                onClick={() => setExecuteMenuOpen(!executeMenuOpen)}
+                disabled={executing}
+                className="text-xs px-3 py-1.5 bg-purple-600 text-white hover:bg-purple-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                {executing ? "Starting..." : "Execute Now"}
+                <span className="text-[10px]">&#9660;</span>
+              </button>
+              {executeMenuOpen && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  <button
+                    onClick={() => handleExecute("worktree")}
+                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-t-lg transition-colors"
+                  >
+                    <div className="text-xs font-medium">Worktree</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">
+                      별도 디렉토리에서 작업, 메인 영향 없음
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleExecute("branch")}
+                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-b-lg border-t border-gray-100 transition-colors"
+                  >
+                    <div className="text-xs font-medium">Branch 전환</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">
+                      메인 디렉토리에서 바로 확인 가능
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           <button
             onClick={onDelete}

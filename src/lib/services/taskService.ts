@@ -3,6 +3,7 @@ import { tasks, projects, executionLogs } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { removeWorktree } from "@/lib/git/worktree";
+import { switchBack } from "@/lib/git/branch";
 
 export async function getTasksByProject(projectId: string) {
   return db.select().from(tasks).where(eq(tasks.projectId, projectId)).all();
@@ -37,6 +38,7 @@ export async function createTask(
     position: maxPosition + 1,
     branchName: null,
     worktreePath: null,
+    executionMode: null,
     retryCount: 0,
     executionError: null,
     executionStartedAt: null,
@@ -49,12 +51,16 @@ export async function createTask(
   return task;
 }
 
-async function cleanupWorktreeIfDone(
+async function cleanupIfDone(
   status: string | undefined,
-  task: { projectId: string; worktreePath: string | null },
+  task: {
+    projectId: string;
+    worktreePath: string | null;
+    executionMode: string | null;
+  },
   taskId: string
 ) {
-  if (status !== "done" || !task.worktreePath) return;
+  if (status !== "done") return;
 
   const project = await db
     .select()
@@ -62,13 +68,18 @@ async function cleanupWorktreeIfDone(
     .where(eq(projects.id, task.projectId))
     .get();
 
-  if (project) {
-    try {
+  if (!project) return;
+
+  try {
+    if (task.executionMode === "branch") {
+      switchBack(project.directoryPath, project.defaultBranch);
+      console.log(`[TaskService] Switched back to ${project.defaultBranch} for task ${taskId}`);
+    } else if (task.worktreePath) {
       removeWorktree(project.directoryPath, task.worktreePath);
       console.log(`[TaskService] Cleaned up worktree for task ${taskId}`);
-    } catch (err) {
-      console.error(`[TaskService] Failed to clean up worktree:`, err);
     }
+  } catch (err) {
+    console.error(`[TaskService] Failed to clean up:`, err);
   }
 }
 
@@ -88,7 +99,7 @@ export async function updateTask(
     .where(eq(tasks.id, taskId));
 
   if (task) {
-    await cleanupWorktreeIfDone(
+    await cleanupIfDone(
       cleanUpdates.status as string | undefined,
       task,
       taskId

@@ -20,6 +20,7 @@ export const tasks = sqliteTable("tasks", {
   position: real("position").notNull().default(0),
   branchName: text("branch_name"),
   worktreePath: text("worktree_path"),
+  executionMode: text("execution_mode"),
   retryCount: integer("retry_count").notNull().default(0),
   executionError: text("execution_error"),
   executionStartedAt: integer("execution_started_at"),
