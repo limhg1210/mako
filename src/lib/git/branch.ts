@@ -44,3 +44,16 @@ export function switchBack(repoPath: string, defaultBranch: string): void {
     // Best effort — branch might already be on default
   }
 }
+
+export function cleanupBranch(
+  repoPath: string,
+  defaultBranch: string,
+  featureBranch: string
+): void {
+  // 1. defaultBranch로 checkout
+  execFileSync("git", ["checkout", defaultBranch], { cwd: repoPath, stdio: "pipe" });
+  // 2. 원격에서 pull
+  execFileSync("git", ["pull", "origin", defaultBranch], { cwd: repoPath, stdio: "pipe" });
+  // 3. 피쳐 브랜치 삭제
+  execFileSync("git", ["branch", "-D", featureBranch], { cwd: repoPath, stdio: "pipe" });
+}

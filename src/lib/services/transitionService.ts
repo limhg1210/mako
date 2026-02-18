@@ -3,7 +3,7 @@ import { tasks, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Task, TaskStatus, ExecutionMode } from "@/types";
 import { removeWorktree } from "@/lib/git/worktree";
-import { switchBack } from "@/lib/git/branch";
+import { cleanupBranch } from "@/lib/git/branch";
 import { runTask } from "@/lib/worker/taskRunner";
 
 export type TransitionErrorCode =
@@ -151,10 +151,13 @@ export async function markDone(taskId: string): Promise<TransitionResult> {
       if (!project) return;
 
       try {
-        if (task.executionMode === "branch") {
-          switchBack(project.directoryPath, project.defaultBranch);
-        } else if (task.worktreePath) {
+        // worktree 모드: worktree 디렉토리 먼저 제거
+        if (task.executionMode === "worktree" && task.worktreePath) {
           removeWorktree(project.directoryPath, task.worktreePath);
+        }
+        // 공통: defaultBranch checkout → pull → 피쳐 브랜치 삭제
+        if (task.branchName) {
+          cleanupBranch(project.directoryPath, project.defaultBranch, task.branchName);
         }
       } catch (err) {
         console.error("[TransitionService] Cleanup failed:", err);

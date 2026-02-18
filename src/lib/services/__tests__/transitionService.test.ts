@@ -7,7 +7,7 @@ const {
   mockDbSelect,
   mockDbUpdate,
   mockRemoveWorktree,
-  mockSwitchBack,
+  mockCleanupBranch,
   mockRunTask,
 } = vi.hoisted(() => {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -22,7 +22,7 @@ const {
     mockDbSelect: vi.fn(() => chain),
     mockDbUpdate: vi.fn(() => chain),
     mockRemoveWorktree: vi.fn(),
-    mockSwitchBack: vi.fn(),
+    mockCleanupBranch: vi.fn(),
     mockRunTask: vi.fn(),
   };
 });
@@ -42,7 +42,7 @@ vi.mock("@/lib/git/worktree", () => ({
   removeWorktree: mockRemoveWorktree,
 }));
 vi.mock("@/lib/git/branch", () => ({
-  switchBack: mockSwitchBack,
+  cleanupBranch: mockCleanupBranch,
 }));
 vi.mock("@/lib/worker/taskRunner", () => ({
   runTask: mockRunTask,
@@ -318,10 +318,11 @@ describe("transitionService", () => {
   // markDone
   // =====================
   describe("markDone", () => {
-    it("review + worktreePath → done 전환 + removeWorktree 호출", async () => {
+    it("review + worktree 모드 → done + removeWorktree + cleanupBranch 호출", async () => {
       const task = makeTask({
         status: "review",
         worktreePath: "/tmp/wt",
+        branchName: "feat-1",
         executionMode: "worktree",
       });
       const project = { id: "proj-1", directoryPath: "/repo", defaultBranch: "main" };
@@ -334,12 +335,14 @@ describe("transitionService", () => {
 
       expect(result.ok).toBe(true);
       expect(mockRemoveWorktree).toHaveBeenCalledWith("/repo", "/tmp/wt");
+      expect(mockCleanupBranch).toHaveBeenCalledWith("/repo", "main", "feat-1");
     });
 
-    it("review + executionMode branch → done + switchBack 호출", async () => {
+    it("review + branch 모드 → done + cleanupBranch 호출 (removeWorktree 안 함)", async () => {
       const task = makeTask({
         status: "review",
         executionMode: "branch",
+        branchName: "feat-2",
         worktreePath: null,
       });
       const project = { id: "proj-1", directoryPath: "/repo", defaultBranch: "main" };
@@ -351,13 +354,15 @@ describe("transitionService", () => {
       const result = await markDone("task-1");
 
       expect(result.ok).toBe(true);
-      expect(mockSwitchBack).toHaveBeenCalledWith("/repo", "main");
+      expect(mockRemoveWorktree).not.toHaveBeenCalled();
+      expect(mockCleanupBranch).toHaveBeenCalledWith("/repo", "main", "feat-2");
     });
 
-    it("review + 둘 다 없음 → done 전환만 (cleanup 안 함)", async () => {
+    it("review + branchName 없음 → done 전환만 (cleanup 안 함)", async () => {
       const task = makeTask({
         status: "review",
         executionMode: null,
+        branchName: null,
         worktreePath: null,
       });
       mockGet
@@ -369,7 +374,7 @@ describe("transitionService", () => {
 
       expect(result.ok).toBe(true);
       expect(mockRemoveWorktree).not.toHaveBeenCalled();
-      expect(mockSwitchBack).not.toHaveBeenCalled();
+      expect(mockCleanupBranch).not.toHaveBeenCalled();
     });
 
     it("working에서 호출 → INVALID_STATUS", async () => {
