@@ -6,7 +6,6 @@ import {
   DragOverlay,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
   closestCorners,
   PointerSensor,
   useSensor,
@@ -56,25 +55,6 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    const activeColumn = findTaskColumn(activeId);
-    // overId could be a column status or a task id
-    const overColumn = TASK_STATUSES.includes(overId as TaskStatus)
-      ? (overId as TaskStatus)
-      : findTaskColumn(overId);
-
-    if (!activeColumn || !overColumn || activeColumn === overColumn) return;
-
-    // Move task to new column temporarily for visual feedback
-    // The actual API call happens on dragEnd
-  };
-
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
@@ -97,6 +77,9 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
 
     if (!activeColumn) return;
+
+    // Only allow reordering within the same column
+    if (activeColumn !== targetColumn) return;
 
     // Calculate new position
     const targetTasks = columns[targetColumn].filter((t) => t.id !== activeId);
@@ -130,7 +113,6 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 h-full">
