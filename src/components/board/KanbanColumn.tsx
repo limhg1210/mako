@@ -23,7 +23,7 @@ export default function KanbanColumn({
   onTaskClick,
   onCreateTask,
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const { setNodeRef } = useDroppable({ id: status });
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -46,9 +46,7 @@ export default function KanbanColumn({
 
   return (
     <div
-      className={`flex flex-col w-64 shrink-0 rounded-lg transition-colors ${
-        isOver ? "bg-blue-50" : "bg-gray-50"
-      }`}
+      className="flex flex-col w-64 shrink-0 rounded-lg bg-gray-50"
     >
       <div className="p-2">
         <ColumnHeader status={status} count={tasks.length} />
