@@ -40,8 +40,8 @@ export default function EditProjectPage({
     e.preventDefault();
     setError("");
 
-    if (!name.trim() || !directoryPath.trim()) {
-      setError("Name and directory path are required");
+    if (!name.trim()) {
+      setError("Name is required");
       return;
     }
 
@@ -50,7 +50,7 @@ export default function EditProjectPage({
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, directoryPath, defaultBranch }),
+        body: JSON.stringify({ name, defaultBranch }),
       });
 
       if (!res.ok) {
@@ -102,12 +102,11 @@ export default function EditProjectPage({
             <input
               type="text"
               value={directoryPath}
-              onChange={(e) => setDirectoryPath(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent font-mono text-sm"
-              placeholder="/Users/username/projects/my-project"
+              disabled
+              className="w-full px-3 py-2 border border-border rounded-lg font-mono text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Absolute path to the local git repository
+              프로젝트 생성 시 설정된 경로는 변경할 수 없습니다
             </p>
           </div>
 
