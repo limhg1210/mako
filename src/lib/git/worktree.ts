@@ -1,15 +1,17 @@
 import { execFileSync } from "child_process";
 import path from "path";
 import fs from "fs";
+import os from "os";
 
-const WORKTREE_DIR = ".mako-worktrees";
+const WORKTREE_BASE = path.join(os.homedir(), ".mako-worktrees");
 
 export function createWorktree(
   repoPath: string,
   branchName: string,
-  defaultBranch: string
+  defaultBranch: string,
+  projectName: string
 ): string {
-  const worktreeBase = path.join(repoPath, WORKTREE_DIR);
+  const worktreeBase = path.join(WORKTREE_BASE, projectName);
   const worktreePath = path.join(worktreeBase, branchName);
 
   // Ensure worktree base directory exists
@@ -78,7 +80,7 @@ export function removeWorktree(repoPath: string, worktreePath: string): void {
   }
 }
 
-export function getWorktreePath(repoPath: string, branchName: string): string {
-  return path.join(repoPath, WORKTREE_DIR, branchName);
+export function getWorktreePath(projectName: string, branchName: string): string {
+  return path.join(WORKTREE_BASE, projectName, branchName);
 }
 

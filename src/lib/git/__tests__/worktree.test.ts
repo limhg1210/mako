@@ -20,6 +20,10 @@ vi.mock("fs", () => ({
   mkdirSync: mockMkdirSync,
   rmSync: mockRmSync,
 }));
+vi.mock("os", () => ({
+  default: { homedir: () => "/mock-home" },
+  homedir: () => "/mock-home",
+}));
 
 import { createWorktree, removeWorktree, getWorktreePath } from "../worktree";
 
@@ -43,10 +47,10 @@ describe("worktree", () => {
         .mockReturnValueOnce(false)  // base dir
         .mockReturnValueOnce(false); // worktree path
 
-      createWorktree("/repo", "feature-branch", "main");
+      createWorktree("/repo", "feature-branch", "main", "my-project");
 
       expect(mockMkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining(".mako-worktrees"),
+        "/mock-home/.mako-worktrees/my-project",
         { recursive: true }
       );
     });
@@ -54,7 +58,7 @@ describe("worktree", () => {
     it("worktree 베이스 디렉토리가 있으면 생성하지 않는다", () => {
       mockNoPriorWorktree();
 
-      createWorktree("/repo", "feature-branch", "main");
+      createWorktree("/repo", "feature-branch", "main", "my-project");
 
       expect(mockMkdirSync).not.toHaveBeenCalled();
     });
@@ -62,7 +66,7 @@ describe("worktree", () => {
     it("git fetch origin을 먼저 실행한다", () => {
       mockNoPriorWorktree();
 
-      createWorktree("/repo", "feature-branch", "main");
+      createWorktree("/repo", "feature-branch", "main", "my-project");
 
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
@@ -80,21 +84,21 @@ describe("worktree", () => {
         .mockReturnValue(undefined);
 
       expect(() =>
-        createWorktree("/repo", "feature-branch", "main")
+        createWorktree("/repo", "feature-branch", "main", "my-project")
       ).not.toThrow();
     });
 
     it("git worktree add 명령을 올바른 인자로 실행한다", () => {
       mockNoPriorWorktree();
 
-      createWorktree("/repo", "my-branch", "develop");
+      createWorktree("/repo", "my-branch", "develop", "my-project");
 
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
         [
           "worktree",
           "add",
-          expect.stringContaining("my-branch"),
+          "/mock-home/.mako-worktrees/my-project/my-branch",
           "-b",
           "my-branch",
           "origin/develop",
@@ -110,14 +114,14 @@ describe("worktree", () => {
         .mockImplementationOnce(() => { throw new Error("No such remote 'origin'"); }) // remote get-url 실패
         .mockReturnValue(undefined);
 
-      createWorktree("/repo", "my-branch", "main");
+      createWorktree("/repo", "my-branch", "main", "my-project");
 
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
         [
           "worktree",
           "add",
-          expect.stringContaining("my-branch"),
+          "/mock-home/.mako-worktrees/my-project/my-branch",
           "-b",
           "my-branch",
           "main",
@@ -129,10 +133,9 @@ describe("worktree", () => {
     it("worktree 경로를 반환한다", () => {
       mockNoPriorWorktree();
 
-      const result = createWorktree("/repo", "feature-x", "main");
+      const result = createWorktree("/repo", "feature-x", "main", "my-project");
 
-      expect(result).toContain(".mako-worktrees");
-      expect(result).toContain("feature-x");
+      expect(result).toBe("/mock-home/.mako-worktrees/my-project/feature-x");
     });
 
     it("기존 worktree 디렉토리가 있으면 제거 후 재생성한다", () => {
@@ -140,18 +143,18 @@ describe("worktree", () => {
         .mockReturnValueOnce(true)  // base dir
         .mockReturnValueOnce(true); // worktree path exists
 
-      createWorktree("/repo", "my-branch", "main");
+      createWorktree("/repo", "my-branch", "main", "my-project");
 
       // Should attempt worktree remove
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
-        ["worktree", "remove", expect.stringContaining("my-branch"), "--force"],
+        ["worktree", "remove", "/mock-home/.mako-worktrees/my-project/my-branch", "--force"],
         expect.objectContaining({ cwd: "/repo" })
       );
       // Should still create the worktree
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
-        ["worktree", "add", expect.stringContaining("my-branch"), "-b", "my-branch", "origin/main"],
+        ["worktree", "add", "/mock-home/.mako-worktrees/my-project/my-branch", "-b", "my-branch", "origin/main"],
         expect.objectContaining({ cwd: "/repo" })
       );
     });
@@ -168,10 +171,10 @@ describe("worktree", () => {
         .mockReturnValueOnce(undefined)  // branch -D
         .mockReturnValueOnce(undefined); // worktree add
 
-      createWorktree("/repo", "my-branch", "main");
+      createWorktree("/repo", "my-branch", "main", "my-project");
 
       expect(mockRmSync).toHaveBeenCalledWith(
-        expect.stringContaining("my-branch"),
+        "/mock-home/.mako-worktrees/my-project/my-branch",
         { recursive: true, force: true }
       );
       expect(mockExecFileSync).toHaveBeenCalledWith(
@@ -184,7 +187,7 @@ describe("worktree", () => {
     it("기존 브랜치가 있으면 삭제 후 재생성한다", () => {
       mockNoPriorWorktree();
 
-      createWorktree("/repo", "my-branch", "main");
+      createWorktree("/repo", "my-branch", "main", "my-project");
 
       // Should attempt branch deletion (even if it doesn't exist, it's called)
       expect(mockExecFileSync).toHaveBeenCalledWith(
@@ -200,11 +203,11 @@ describe("worktree", () => {
   // =====================
   describe("removeWorktree", () => {
     it("git worktree remove --force를 실행한다", () => {
-      removeWorktree("/repo", "/repo/.mako-worktrees/branch");
+      removeWorktree("/repo", "/mock-home/.mako-worktrees/my-project/branch");
 
       expect(mockExecFileSync).toHaveBeenCalledWith(
         "git",
-        ["worktree", "remove", "/repo/.mako-worktrees/branch", "--force"],
+        ["worktree", "remove", "/mock-home/.mako-worktrees/my-project/branch", "--force"],
         expect.objectContaining({ cwd: "/repo" })
       );
     });
@@ -247,9 +250,9 @@ describe("worktree", () => {
   // =====================
   describe("getWorktreePath", () => {
     it("올바른 경로를 반환한다", () => {
-      const result = getWorktreePath("/repo", "feature-branch");
+      const result = getWorktreePath("my-project", "feature-branch");
 
-      expect(result).toBe("/repo/.mako-worktrees/feature-branch");
+      expect(result).toBe("/mock-home/.mako-worktrees/my-project/feature-branch");
     });
   });
 });

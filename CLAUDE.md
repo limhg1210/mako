@@ -78,7 +78,7 @@ src/
 ## 핵심 실행 파이프라인
 
 1. 사용자가 Ready 태스크에서 "Execute Now" 클릭
-2. `git worktree add .mako-worktrees/<branch> -b <branch> origin/<default>`
+2. `git worktree add ~/.mako-worktrees/<project_name>/<branch> -b <branch> origin/<default>`
 3. 태스크 → Working 상태 변경
 4. `claude -p "<작업계획>" --output-format stream-json --dangerously-skip-permissions` (cwd: worktree)
 5. stdout/stderr → execution_logs 테이블 저장
@@ -105,4 +105,4 @@ src/
 
 - `better-sqlite3`는 `next.config.ts`의 `serverExternalPackages`에 등록 필요
 - SQLite는 `busy_timeout = 5000` 설정으로 멀티 워커 빌드 시 잠금 충돌 방지
-- worktree는 대상 프로젝트의 `.mako-worktrees/` 디렉토리에 생성됨
+- worktree는 `~/.mako-worktrees/{project_name}/` 디렉토리에 생성됨 (대상 프로젝트 오염 방지)

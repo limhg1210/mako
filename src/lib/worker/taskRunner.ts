@@ -49,7 +49,8 @@ export async function runTask(
       cwdPath = createWorktree(
         project.directoryPath,
         branchName,
-        project.defaultBranch
+        project.defaultBranch,
+        project.name
       );
     }
 
