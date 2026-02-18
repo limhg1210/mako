@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 /** PUT /api/projects — 프로젝트 정보 수정 (id 필수) */
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, directoryPath: _, ...updates } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });

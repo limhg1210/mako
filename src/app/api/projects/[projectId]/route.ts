@@ -29,6 +29,7 @@ export async function PUT(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  const updated = await updateProject(projectId, body);
+  const { directoryPath: _, ...updates } = body;
+  const updated = await updateProject(projectId, updates);
   return NextResponse.json(updated);
 }
