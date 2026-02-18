@@ -39,16 +39,23 @@ export function useBoard(projectId: string) {
 
   const moveTask = async (taskId: string, status: TaskStatus, position: number) => {
     // Optimistic update
+    const previousTasks = tasks;
     const optimistic = tasks.map((t) =>
       t.id === taskId ? { ...t, status, position } : t
     );
     mutate(optimistic, false);
 
-    await fetch("/api/board/reorder", {
+    const res = await fetch("/api/board/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ taskId, status, position }),
     });
+
+    if (!res.ok) {
+      // Revert optimistic update on failure
+      mutate(previousTasks, false);
+    }
+
     mutate();
   };
 

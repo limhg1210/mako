@@ -5,6 +5,7 @@ import { executeClaude } from "@/lib/claude/executor";
 import { buildPrompt } from "@/lib/claude/promptBuilder";
 import { createWorktree } from "@/lib/git/worktree";
 import { switchBranch, switchBack } from "@/lib/git/branch";
+import { moveToReview, failToReady } from "@/lib/services/transitionService";
 import { Task, ExecutionMode } from "@/types";
 
 function slugify(text: string): string {
@@ -75,30 +76,18 @@ export async function runTask(
     const result = await executeClaude(prompt, cwdPath, taskId, runNumber);
 
     if (result.success) {
-      // 5. Update task to review (Claude handles push + PR via prompt)
-      await db
-        .update(tasks)
-        .set({
-          status: "review",
-          executionFinishedAt: Date.now(),
-          updatedAt: Date.now(),
-        })
-        .where(eq(tasks.id, taskId));
+      // 5. Move to review via transitionService
+      await moveToReview(taskId);
     } else {
-      // Execution failed - move back to ready for retry, increment retry count
+      // Execution failed - move back to ready for retry
       if (mode === "branch") {
         switchBack(project.directoryPath, project.defaultBranch);
       }
-      await db
-        .update(tasks)
-        .set({
-          status: "ready",
-          retryCount: runNumber,
-          executionError: result.error || "Unknown error",
-          executionFinishedAt: Date.now(),
-          updatedAt: Date.now(),
-        })
-        .where(eq(tasks.id, taskId));
+      await failToReady(
+        taskId,
+        result.error || "Unknown error",
+        runNumber
+      );
     }
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -110,15 +99,6 @@ export async function runTask(
         // Best effort cleanup
       }
     }
-    await db
-      .update(tasks)
-      .set({
-        status: "ready",
-        retryCount,
-        executionError: errMsg,
-        executionFinishedAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-      .where(eq(tasks.id, taskId));
+    await failToReady(taskId, errMsg, retryCount);
   }
 }

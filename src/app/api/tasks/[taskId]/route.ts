@@ -16,13 +16,20 @@ export async function GET(
   return NextResponse.json(task);
 }
 
-/** PUT /api/tasks/:taskId — 태스크 수정 (status=done 시 worktree 자동 정리) */
+/** PUT /api/tasks/:taskId — 태스크 필드 수정 (status 변경은 transitions API 사용) */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   const { taskId } = await params;
   const body = await request.json();
+
+  if ("status" in body) {
+    return NextResponse.json(
+      { error: "Use POST /api/tasks/:taskId/transitions/:action to change status" },
+      { status: 400 }
+    );
+  }
 
   const updated = await updateTask(taskId, body);
   return NextResponse.json(updated);

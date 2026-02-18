@@ -23,12 +23,34 @@ export function useTask(taskId: string | null) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
-    const updated = await res.json();
-    mutate(updated, false);
-    return updated;
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error || "Update failed");
+    }
+    mutate(json, false);
+    return json;
   };
 
-  return { task: data, error, isLoading, mutate, updateTask };
+  const transitionTask = async (
+    action: string,
+    body?: Record<string, unknown>
+  ) => {
+    if (!taskId) return;
+
+    const res = await fetch(`/api/tasks/${taskId}/transitions/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error || "Transition failed");
+    }
+    mutate();
+    return json;
+  };
+
+  return { task: data, error, isLoading, mutate, updateTask, transitionTask };
 }
 
 export function useExecutionLogs(taskId: string | null, isActive: boolean = false) {

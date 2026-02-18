@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // --- Drizzle 체인 모킹 ---
-const { mockGet, mockAll, mockDbSelect, mockRunTask } = vi.hoisted(() => {
+const { mockGet, mockAll, mockDbSelect } = vi.hoisted(() => {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
   chain.from = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
@@ -13,7 +13,6 @@ const { mockGet, mockAll, mockDbSelect, mockRunTask } = vi.hoisted(() => {
     mockGet: chain.get,
     mockAll: chain.all,
     mockDbSelect: vi.fn(() => chain),
-    mockRunTask: vi.fn(),
   };
 });
 
@@ -23,60 +22,12 @@ vi.mock("@/db/schema", () => ({
   executionLogs: { taskId: "taskId", timestamp: "timestamp" },
 }));
 vi.mock("drizzle-orm", () => ({ eq: vi.fn(), asc: vi.fn() }));
-vi.mock("@/lib/worker/taskRunner", () => ({ runTask: mockRunTask }));
 
-import { triggerExecution, getExecutionStatus } from "../executionService";
+import { getExecutionStatus } from "../executionService";
 
 describe("executionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRunTask.mockResolvedValue(undefined);
-  });
-
-  // =====================
-  // triggerExecution
-  // =====================
-  describe("triggerExecution", () => {
-    it("태스크가 없으면 not_found 반환", async () => {
-      mockGet.mockReturnValueOnce(undefined);
-
-      const result = await triggerExecution("nonexistent");
-
-      expect(result).toEqual({ ok: false, reason: "not_found" });
-    });
-
-    it("status가 ready가 아니면 not_ready 반환", async () => {
-      mockGet.mockReturnValueOnce({ id: "task-1", status: "backlog" });
-
-      const result = await triggerExecution("task-1");
-
-      expect(result).toEqual({ ok: false, reason: "not_ready" });
-    });
-
-    it("ready 태스크 → runTask 백그라운드 실행 + ok: true", async () => {
-      mockGet.mockReturnValueOnce({ id: "task-1", status: "ready" });
-
-      const result = await triggerExecution("task-1");
-
-      expect(result).toEqual({ ok: true });
-      expect(mockRunTask).toHaveBeenCalledWith("task-1");
-    });
-
-    it("runTask 에러는 console.error로 처리 (크래시 안 함)", async () => {
-      mockGet.mockReturnValueOnce({ id: "task-1", status: "ready" });
-      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-      mockRunTask.mockRejectedValue(new Error("execution failed"));
-
-      const result = await triggerExecution("task-1");
-
-      expect(result).toEqual({ ok: true });
-      // catch 핸들러가 비동기이므로 잠시 대기
-      await new Promise((r) => setTimeout(r, 10));
-      expect(spy).toHaveBeenCalledWith(
-        "Task execution error:",
-        expect.any(Error)
-      );
-    });
   });
 
   // =====================

@@ -14,13 +14,19 @@ interface TaskDetailPanelProps {
   onUpdate: () => void;
 }
 
-const STATUS_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
-  backlog: ["plan"],
-  plan: ["ready", "backlog"],
-  ready: ["plan", "working"],
-  working: [],
-  review: ["done", "ready"],
-  done: ["review"],
+interface TransitionOption {
+  action: string;
+  label: string;
+}
+
+const TRANSITION_ACTIONS: Partial<Record<TaskStatus, TransitionOption[]>> = {
+  backlog: [{ action: "start-plan", label: "Plan" }],
+  plan: [
+    { action: "move-to-backlog", label: "Backlog" },
+    { action: "mark-ready", label: "Ready" },
+  ],
+  ready: [{ action: "unmark-ready", label: "Plan" }],
+  review: [{ action: "mark-done", label: "Done" }],
 };
 
 export default function TaskDetailPanel({
@@ -29,7 +35,7 @@ export default function TaskDetailPanel({
   onDelete,
   onUpdate,
 }: TaskDetailPanelProps) {
-  const { task, updateTask, mutate } = useTask(taskId);
+  const { task, updateTask, transitionTask, mutate } = useTask(taskId);
   const [isEditing, setIsEditing] = useState(false);
   const [pendingExecution, setPendingExecution] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -45,23 +51,25 @@ export default function TaskDetailPanel({
     [updateTask, onUpdate]
   );
 
-  const handleStatusChange = async (newStatus: TaskStatus) => {
-    await updateTask({ status: newStatus });
-    onUpdate();
+  const handleTransition = async (action: string) => {
+    try {
+      await transitionTask(action);
+      onUpdate();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "상태 변경에 실패했습니다.");
+    }
   };
 
   const handleExecute = async (mode: ExecutionMode) => {
     setExecuteMenuOpen(false);
     setExecuting(true);
     try {
-      await fetch("/api/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, mode }),
-      });
+      await transitionTask("execute", { mode });
       onUpdate();
       mutate();
       setPendingExecution(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "실행에 실패했습니다.");
     } finally {
       setExecuting(false);
     }
@@ -110,7 +118,7 @@ export default function TaskDetailPanel({
   }
 
   const status = task.status as TaskStatus;
-  const transitions = STATUS_TRANSITIONS[status] || [];
+  const transitions = TRANSITION_ACTIONS[status] || [];
   const canEdit = status === "plan" || status === "backlog";
   const showLogs = status === "working" || status === "review" || status === "done";
 
@@ -164,13 +172,13 @@ export default function TaskDetailPanel({
 
         {/* Actions */}
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap shrink-0">
-          {transitions.map((targetStatus) => (
+          {transitions.map((t) => (
             <button
-              key={targetStatus}
-              onClick={() => handleStatusChange(targetStatus)}
+              key={t.action}
+              onClick={() => handleTransition(t.action)}
               className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
             >
-              Move to {STATUS_LABELS[targetStatus]}
+              Move to {t.label}
             </button>
           ))}
           {status === "ready" && (

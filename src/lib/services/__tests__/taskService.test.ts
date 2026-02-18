@@ -9,7 +9,6 @@ const {
   mockDbInsert,
   mockDbUpdate,
   mockDbDelete,
-  mockRemoveWorktree,
 } = vi.hoisted(() => {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
   chain.from = vi.fn(() => chain);
@@ -28,7 +27,6 @@ const {
     mockDbInsert: vi.fn(() => chain),
     mockDbUpdate: vi.fn(() => chain),
     mockDbDelete: vi.fn(() => chain),
-    mockRemoveWorktree: vi.fn(),
   };
 });
 
@@ -47,9 +45,6 @@ vi.mock("@/db/schema", () => ({
 }));
 vi.mock("drizzle-orm", () => ({ eq: vi.fn(), and: vi.fn(), asc: vi.fn() }));
 vi.mock("nanoid", () => ({ nanoid: () => "new-id" }));
-vi.mock("@/lib/git/worktree", () => ({
-  removeWorktree: mockRemoveWorktree,
-}));
 
 import {
   getTasksByProject,
@@ -57,7 +52,6 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  reorderTask,
   getExecutionLogs,
 } from "../taskService";
 
@@ -146,9 +140,7 @@ describe("taskService", () => {
   // =====================
   describe("updateTask", () => {
     it("updates에서 id 필드를 제거한다", async () => {
-      mockGet
-        .mockReturnValueOnce({ id: "task-1", worktreePath: null }) // before
-        .mockReturnValueOnce({ id: "task-1", title: "Updated" }); // after
+      mockGet.mockReturnValueOnce({ id: "task-1", title: "Updated" });
 
       await updateTask("task-1", { id: "hacked", title: "Updated" });
 
@@ -156,39 +148,6 @@ describe("taskService", () => {
       expect(setArg).not.toHaveProperty("id");
       expect(setArg).toHaveProperty("title", "Updated");
       expect(setArg).toHaveProperty("updatedAt");
-    });
-
-    it("status=done + worktreePath → worktree 정리", async () => {
-      const task = { id: "task-1", projectId: "proj-1", worktreePath: "/tmp/wt" };
-      const project = { id: "proj-1", directoryPath: "/repo" };
-      mockGet
-        .mockReturnValueOnce(task) // before update
-        .mockReturnValueOnce(project) // project lookup
-        .mockReturnValueOnce({ ...task, status: "done" }); // after update
-
-      await updateTask("task-1", { status: "done" });
-
-      expect(mockRemoveWorktree).toHaveBeenCalledWith("/repo", "/tmp/wt");
-    });
-
-    it("status=done + worktreePath 없음 → worktree 정리 안 함", async () => {
-      mockGet
-        .mockReturnValueOnce({ id: "task-1", worktreePath: null }) // before
-        .mockReturnValueOnce({ id: "task-1", status: "done" }); // after
-
-      await updateTask("task-1", { status: "done" });
-
-      expect(mockRemoveWorktree).not.toHaveBeenCalled();
-    });
-
-    it("status가 done이 아니면 worktree 정리 안 함", async () => {
-      mockGet
-        .mockReturnValueOnce({ id: "task-1", worktreePath: "/tmp/wt" })
-        .mockReturnValueOnce({ id: "task-1", status: "review" });
-
-      await updateTask("task-1", { status: "review" });
-
-      expect(mockRemoveWorktree).not.toHaveBeenCalled();
     });
   });
 
@@ -200,23 +159,6 @@ describe("taskService", () => {
       await deleteTask("task-1");
 
       expect(mockDbDelete).toHaveBeenCalled();
-    });
-  });
-
-  // =====================
-  // reorderTask
-  // =====================
-  describe("reorderTask", () => {
-    it("updateTask에 status와 position을 위임한다", async () => {
-      mockGet
-        .mockReturnValueOnce({ id: "task-1", worktreePath: null })
-        .mockReturnValueOnce({ id: "task-1", status: "plan", position: 2.5 });
-
-      await reorderTask("task-1", "plan", 2.5);
-
-      expect(mockChainSet).toHaveBeenCalledWith(
-        expect.objectContaining({ status: "plan", position: 2.5 })
-      );
     });
   });
 

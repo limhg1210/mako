@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server";
 import { getExecutionStatus } from "@/lib/services/executionService";
 
-/** GET /api/execute/status?taskId=xxx — SSE로 태스크 실행 상태·로그를 실시간 스트리밍 (2초 폴링) */
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const taskId = searchParams.get("taskId");
-
-  if (!taskId) {
-    return new Response("taskId is required", { status: 400 });
-  }
+/** GET /api/tasks/:taskId/execution-status — SSE로 태스크 실행 상태·로그를 실시간 스트리밍 (2초 폴링) */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
+) {
+  const { taskId } = await params;
 
   const encoder = new TextEncoder();
   let lastTimestamp = 0;
